@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détails du répertoire — DevOps Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+                    }
+                }
+            }
+        };
+    </script>
+    <!-- Marked.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+</head>
+<body class="min-h-screen bg-slate-950 font-sans text-slate-300 antialiased p-4 sm:p-8">
+    <div class="mx-auto max-w-5xl">
+        <!-- Top Back Link & Title -->
+        <div class="mb-8 border-b border-slate-800 pb-6">
+            <a href="/" class="inline-flex items-center gap-2 text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors mb-4">
+                &larr; Retour au moniteur
+            </a>
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Détails du répertoire</h1>
+        </div>
+
+        <!-- Path Header Card -->
+        <div class="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl space-y-2">
+            <p class="text-sm text-slate-400">
+                Chemin sélectionné : <code class="rounded-lg bg-slate-950 px-2.5 py-1 text-cyan-300 font-mono text-xs border border-slate-800">{{ current_path }}</code>
+            </p>
+            {% if parent_path %}
+                <p class="pt-2">
+                    <a href="/disk-details?path={{ parent_path | urlencode }}" class="inline-flex items-center text-xs font-semibold text-cyan-400 hover:underline">
+                        &larr; Revenir au dossier parent
+                    </a>
+                </p>
+            {% endif %}
+        </div>
+
+        <!-- Loading Message Box -->
+        <div id="disk-details-message" class="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center text-sm text-slate-400">
+            Chargement des 10 répertoires les plus lourds...
+        </div>
+
+        <!-- Details Table Wrapper -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl hidden" id="disk-details-wrapper">
+            <table class="w-full text-left text-sm text-slate-300">
+                <thead class="border-b border-slate-800 bg-slate-950/80 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <tr>
+                        <th class="px-4 py-3.5 w-32">Taille</th>
+                        <th class="px-4 py-3.5">Chemin d'accès</th>
+                        <th class="px-4 py-3.5 w-56 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="disk-detail-list" class="divide-y divide-slate-800/60 font-mono text-xs"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- AI Analysis Modal -->
+    <div id="ai-modal" class="fixed inset-0 z-50 hidden place-items-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm">
+        <div class="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl text-slate-100">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-2">
+                    <span class="grid h-7 w-7 place-items-center rounded-lg bg-cyan-400 text-xs font-black text-slate-950">✦</span>
+                    <h2 id="ai-modal-title" class="text-lg font-bold text-white">Analyse IA Monitor</h2>
+                </div>
+                <button class="close-button text-2xl font-semibold text-slate-400 transition-colors hover:text-white">&times;</button>
+            </div>
+            <div class="mt-4 max-h-[70vh] overflow-y-auto pr-2 text-sm leading-relaxed text-slate-300">
+                <div id="ai-analysis-content" class="space-y-3"></div>
+            </div>
+            <div class="mt-6 border-t border-slate-800 pt-4 flex justify-end">
+                <button id="modal-close-action" class="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const currentPath = {{ current_path | tojson }};
+        let modal, modalTitle, modalContent, closeBtn, modalCloseAction;
+
+        async function fetchDiskDetails(path) {
+            try {
+                const response = await fetch(`/disk-usage-details?path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+                if (data.error) throw new Error(data.details || data.error || 'Erreur inattendue');
+                return data;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        function renderDiskDetails(data) {
+            const wrapper = document.getElementById('disk-details-wrapper');
+            const list = document.getElementById('disk-detail-list');
+            const message = document.getElementById('disk-details-message');
+
+            if (!Array.isArray(data) || data.length === 0) {
+                message.textContent = 'Aucun sous-répertoire volumineux trouvé pour ce chemin.';
+                wrapper.classList.add('hidden');
+                return;
+            }
+
+            list.innerHTML = '';
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-800/40 transition-colors';
+                row.innerHTML = `
+                    <td class="px-4 py-3.5 font-bold text-emerald-400">${item.size}</td>
+                    <td class="px-4 py-3.5 text-slate-300 truncate max-w-sm"><code class="text-cyan-300">${item.path}</code></td>
+                    <td class="px-4 py-3.5 text-right">
+                        <div class="inline-flex gap-2">
+                            <button class="link-button rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors" data-action="view-more" data-path="${encodeURIComponent(item.path)}">Voir plus loin</button>
+                            <button class="ai-button rounded-xl bg-cyan-400 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition-colors" data-action="ia-monitor" data-path="${encodeURIComponent(item.path)}" data-info='${JSON.stringify(item).replace(/'/g, "&#39;")}'>IA Monitor ✦</button>
+                        </div>
+                    </td>
+                `;
+                list.appendChild(row);
+            });
+
+            message.style.display = 'none';
+            wrapper.classList.remove('hidden');
+        }
+
+        function showModal(title, content) {
+            modalTitle.textContent = title;
+            modalContent.innerHTML = content;
+            modal.classList.remove('hidden');
+            modal.classList.add('grid');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            modal.classList.remove('grid');
+        }
+
+        async function analyzeItem(info) {
+            showModal(`Analyse du répertoire : ${info.path}`, '<p class="text-cyan-400 animate-pulse py-4 text-center font-medium">Analyse en cours par l\'IA Monitor...</p>');
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'disk', data: info })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Erreur HTTP ${response.status}`);
+                }
+                const result = await response.json();
+                modalContent.innerHTML = marked.parse(result.analysis);
+            } catch (error) {
+                modalContent.innerHTML = `<p class="text-rose-400 p-2">Erreur : ${error.message}</p>`;
+            }
+        }
+
+        document.addEventListener('click', async (event) => {
+            if (event.target.matches('.link-button')) {
+                const nextPath = decodeURIComponent(event.target.dataset.path);
+                window.location.href = `/disk-details?path=${encodeURIComponent(nextPath)}`;
+            }
+            if (event.target.matches('.ai-button')) {
+                const info = JSON.parse(event.target.dataset.info);
+                await analyzeItem(info);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            modal = document.getElementById('ai-modal');
+            modalTitle = document.getElementById('ai-modal-title');
+            modalContent = document.getElementById('ai-analysis-content');
+            closeBtn = document.querySelector('.close-button');
+            modalCloseAction = document.getElementById('modal-close-action');
+
+            if (closeBtn) closeBtn.addEventListener('click', closeModal);
+            if (modalCloseAction) modalCloseAction.addEventListener('click', closeModal);
+            window.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+
+            try {
+                const data = await fetchDiskDetails(currentPath);
+                renderDiskDetails(data);
+            } catch (error) {
+                const message = document.getElementById('disk-details-message');
+                message.textContent = `Erreur : ${error.message}`;
+                document.getElementById('disk-details-wrapper').classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Connexion — Linux System Monitor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#f1f5f6;color:#1b303b}
+  [class~="bg-slate-950"]{background-color:#edf2f3!important}
+  [class~="bg-slate-900"]{background-color:#fff!important}
+  [class~="border-slate-800"],[class~="border-slate-700"]{border-color:#d8e2e6!important}
+  [class~="text-white"]{color:#17313e!important}
+  [class~="text-slate-100"]{color:#1b303b!important}
+  [class~="text-slate-400"]{color:#637b87!important}
+  [class~="text-slate-600"]{color:#82949c!important}
+  [class~="bg-cyan-400"]{background-color:#218b76!important}
+  [class~="hover:bg-cyan-300"]:hover{background-color:#197a67!important}
+  [class~="text-slate-950"]{color:#fff!important}
+  input{background-color:#f8fafb!important;color:#1b303b!important;border-color:#d8e2e6!important}
+  input:focus{border-color:#218b76!important}
+</style>
+</head>
+<body class="grid min-h-screen place-items-center bg-slate-950 px-4 font-sans text-slate-100">
+  <div class="w-full max-w-sm">
+    <div class="mb-6 flex items-center justify-center gap-2 font-bold text-white">
+      <span class="grid h-9 w-9 place-items-center rounded-lg bg-cyan-400 text-slate-950">⌁</span>
+      <span class="text-lg">Monitor</span>
+    </div>
+
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+      {% if configuration_error %}
+        <div class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-300">
+          Configuration incomplète : vérifiez <code class="font-mono">FLASK_SECRET_KEY</code>, <code class="font-mono">ADMIN_USERNAME</code> et <code class="font-mono">ADMIN_PASSWORD_HASH</code> dans <code class="font-mono">.env</code>.
+        </div>
+      {% endif %}
+      {% if error %}
+        <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-300">
+          {{ error }}
+        </div>
+      {% endif %}
+
+      <h1 class="mb-1 text-xl font-semibold text-white">Connexion</h1>
+      <p class="mb-6 text-sm text-slate-400">Accédez au tableau de bord du serveur.</p>
+
+      <form method="post" class="space-y-4">
+        <label class="block text-sm">
+          <span class="text-slate-400">Identifiant</span>
+          <input type="text" name="username" autocomplete="username" required
+            class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none focus:border-cyan-400" />
+        </label>
+        <label class="block text-sm">
+          <span class="text-slate-400">Mot de passe</span>
+          <input type="password" name="password" autocomplete="current-password" required
+            class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-slate-100 outline-none focus:border-cyan-400" />
+        </label>
+        <button type="submit" {% if configuration_error %}disabled{% endif %}
+          class="w-full rounded-lg bg-cyan-400 py-2.5 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50">
+          Se connecter
+        </button>
+      </form>
+    </div>
+    <p class="mt-6 text-center text-xs text-slate-600">Linux System Monitor · Accès protégé par session</p>
+  </div>
+</body>
+</html>

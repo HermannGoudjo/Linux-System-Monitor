@@ -1,0 +1,6 @@
+Flask
+psutil
+gunicorn
+APScheduler
+google-generativeai
+python-dotenv

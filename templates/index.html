@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Linux System Monitor — Vue globale</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script>
+  tailwind.config = { theme: { extend: { fontFamily: { mono: ['ui-monospace','SFMono-Regular','monospace'] } } } };
+</script>
+<style>
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-track{background:#edf2f3}
+  ::-webkit-scrollbar-thumb{background:#c4d2d8;border-radius:8px}
+  .nav-link.active{background:#e5f3ef;color:#167763;font-weight:600}
+  .nav-link.active .nav-dot{opacity:1}
+  .nav-link-mobile.active{background:#e5f3ef;border-color:#a8d8cb;color:#167763;font-weight:600}
+  .mobile-nav::-webkit-scrollbar{display:none}
+  .section{display:none}
+  .section.active{display:block}
+  @keyframes pulse-soft{0%,100%{opacity:1}50%{opacity:.45}}
+  .live-dot{animation:pulse-soft 2s ease-in-out infinite}
+  [x-cloak]{display:none}
+  body{background:#f1f5f6;color:#1b303b}
+  [class~="bg-slate-950"]{background-color:#edf2f3!important}
+  [class~="bg-slate-950/95"]{background-color:rgba(247,249,250,.96)!important}
+  [class~="bg-slate-950/70"]{background-color:rgba(23,49,62,.38)!important}
+  [class~="bg-slate-900"]{background-color:#fff!important}
+  [class~="bg-slate-800"]{background-color:#e9eff1!important}
+  [class~="bg-slate-800/90"],[class~="bg-slate-800/60"]{background-color:#edf2f3!important}
+  [class~="bg-slate-800/50"],[class~="bg-slate-800/40"]{background-color:#f5f8f9!important}
+  [class~="border-slate-800"],[class~="border-slate-700"]{border-color:#d8e2e6!important}
+  [class~="border-t-slate-800"],[class~="border-b-slate-800"]{border-color:#d8e2e6!important}
+  [class~="divide-slate-800"]>:not([hidden])~:not([hidden]){border-color:#e5ecef!important}
+  [class~="text-white"]{color:#17313e!important}
+  [class~="text-slate-100"]{color:#1b303b!important}
+  [class~="text-slate-200"]{color:#304b58!important}
+  [class~="text-slate-300"]{color:#425c69!important}
+  [class~="text-slate-400"]{color:#637b87!important}
+  [class~="text-slate-500"]{color:#718691!important}
+  [class~="text-slate-600"]{color:#82949c!important}
+  [class~="text-cyan-300"],[class~="text-cyan-400"]{color:#167763!important}
+  [class~="bg-cyan-400"]{background-color:#218b76!important}
+  [class~="hover:bg-cyan-300"]:hover{background-color:#197a67!important}
+  [class~="text-slate-950"]{color:#fff!important}
+  [class~="hover:text-cyan-300"]:hover{color:#167763!important}
+  [class~="hover:border-cyan-400"]:hover{border-color:#79bbaa!important}
+  [class~="hover:bg-slate-800/60"]:hover{background-color:#edf3f4!important}
+  [class~="hover:bg-slate-800/40"]:hover{background-color:#f0f5f6!important}
+  [class~="text-emerald-400"]{color:#16805f!important}
+  [class~="text-amber-400"]{color:#a66b00!important}
+  [class~="text-rose-400"]{color:#c24154!important}
+  [class~="text-rose-300"]{color:#b53c50!important}
+  [class~="placeholder-slate-500"]::placeholder{color:#82949c!important}
+  input,select{color-scheme:light}
+</style>
+</head>
+<body class="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
+
+<div class="mx-auto flex max-w-[1500px] gap-5 p-4 pt-[104px] md:p-6 md:pt-6">
+
+  <!-- Sidebar -->
+  <aside class="sticky top-6 hidden h-[calc(100vh-3rem)] w-[210px] shrink-0 flex-col rounded-2xl border border-slate-800 bg-slate-900 p-4 md:flex">
+    <div class="mb-8 flex items-center gap-2 px-1 font-bold text-white">
+      <span class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400 text-slate-950">⌁</span>
+      Monitor
+    </div>
+    <nav class="flex-1 space-y-1 text-sm" id="main-nav">
+      <a href="#overview" data-target="overview" class="nav-link active flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>▦ Vue globale</a>
+      <a href="#history" data-target="history" class="nav-link flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>◔ Historique</a>
+      <a href="#network" data-target="network" class="nav-link flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>⌁ Réseau</a>
+      <a href="#processes" data-target="processes" class="nav-link flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>▤ Processus</a>
+      <a href="#disk" data-target="disk" class="nav-link flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>▰ Disque</a>
+      <a href="#apps" data-target="apps" class="nav-link flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>⬢ Applications</a>
+      <a href="#services" data-target="services" class="nav-link flex items-center gap-2 rounded-lg px-3 py-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-cyan-400 opacity-0"></span>◈ Services</a>
+    </nav>
+    <div class="space-y-1 border-t border-slate-800 pt-3 text-sm">
+      <button id="open-settings" class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200">⚙ Réglages</button>
+      <form action="/logout" method="post">
+        <button class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-slate-400 transition hover:bg-slate-800/60 hover:text-rose-300">⏻ Déconnexion</button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- Mobile top nav (visible below md) -->
+  <div class="fixed inset-x-0 top-0 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur md:hidden">
+    <div class="flex items-center justify-between px-3 py-2.5">
+      <div class="flex items-center gap-2 font-bold text-white">
+        <span class="grid h-7 w-7 place-items-center rounded-lg bg-cyan-400 text-sm text-slate-950">⌁</span>
+        Monitor
+      </div>
+      <div class="flex items-center gap-1">
+        <button id="open-settings-mobile" class="grid h-8 w-8 place-items-center rounded-lg border border-slate-700 text-slate-300">⚙</button>
+        <form action="/logout" method="post">
+          <button class="grid h-8 w-8 place-items-center rounded-lg border border-slate-700 text-slate-300">⏻</button>
+        </form>
+      </div>
+    </div>
+    <nav class="mobile-nav flex gap-1.5 overflow-x-auto px-3 pb-2.5 text-sm" style="scrollbar-width:none">
+      <a href="#overview" data-target="overview" class="nav-link-mobile active shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">▦ Vue globale</a>
+      <a href="#history" data-target="history" class="nav-link-mobile shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">◔ Historique</a>
+      <a href="#network" data-target="network" class="nav-link-mobile shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">⌁ Réseau</a>
+      <a href="#processes" data-target="processes" class="nav-link-mobile shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">▤ Processus</a>
+      <a href="#disk" data-target="disk" class="nav-link-mobile shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">▰ Disque</a>
+      <a href="#apps" data-target="apps" class="nav-link-mobile shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">⬢ Applications</a>
+      <a href="#services" data-target="services" class="nav-link-mobile shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-slate-400 transition">◈ Services</a>
+    </nav>
+  </div>
+
+  <!-- Main -->
+  <main class="min-w-0 flex-1">
+
+    <!-- Top bar -->
+    <header class="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div>
+        <p class="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-cyan-400">Atlas · Infrastructure</p>
+        <h1 class="text-xl font-semibold text-white" id="hostname-title">Bonjour, voici l’état de votre serveur.</h1>
+        <p class="mt-1 flex items-center gap-2 text-sm text-slate-400">
+          <span id="platform-label">—</span>
+          <span class="text-slate-600">·</span>
+          <span class="live-dot h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+          <span id="last-updated">Mise à jour…</span>
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <form action="/search" method="get" class="flex items-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+          <input name="query" placeholder="Rechercher un processus, service, fichier…" class="w-56 bg-transparent px-3 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none md:w-72" />
+          <button class="px-3 py-2 text-slate-400 hover:text-cyan-300" aria-label="Rechercher">⌕</button>
+        </form>
+        <button id="refresh-btn" class="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-cyan-400 hover:text-cyan-300">↻ Actualiser</button>
+      </div>
+    </header>
+
+    <!-- ===================== OVERVIEW ===================== -->
+    <section id="overview" class="section active space-y-5">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">CPU</p>
+          <div class="mt-3 flex items-end justify-between">
+            <b class="text-3xl text-white" id="cpu-percent">—</b>
+            <span class="rounded-full px-2 py-0.5 text-xs font-semibold" id="cpu-badge">—</span>
+          </div>
+          <div class="mt-4 h-1.5 rounded bg-slate-800"><div id="cpu-bar" class="h-full w-0 rounded bg-cyan-400 transition-all duration-700"></div></div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Mémoire</p>
+          <div class="mt-3 flex items-end justify-between">
+            <b class="text-3xl text-white" id="mem-percent">—</b>
+            <span class="rounded-full px-2 py-0.5 text-xs font-semibold" id="mem-badge">—</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500"><span id="mem-used">—</span> GB / <span id="mem-total">—</span> GB</p>
+          <div class="mt-3 h-1.5 rounded bg-slate-800"><div id="mem-bar" class="h-full w-0 rounded bg-amber-400 transition-all duration-700"></div></div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Disque</p>
+          <div class="mt-3 flex items-end justify-between">
+            <b class="text-3xl text-white" id="disk-percent">—</b>
+            <span class="rounded-full px-2 py-0.5 text-xs font-semibold" id="disk-badge">—</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500"><span id="disk-used">—</span> GB / <span id="disk-total">—</span> GB</p>
+          <div class="mt-3 h-1.5 rounded bg-slate-800"><div id="disk-bar" class="h-full w-0 rounded bg-emerald-400 transition-all duration-700"></div></div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Trafic réseau · depuis le démarrage</p>
+          <div class="mt-3 grid grid-cols-2 gap-3">
+            <div><span class="block text-xs text-slate-500">Envoyé</span><b class="mt-1 block text-2xl text-white"><span id="overview-net-sent">—</span><small class="ml-1 text-xs font-normal text-slate-400">GB</small></b></div>
+            <div><span class="block text-xs text-slate-500">Reçu</span><b class="mt-1 block text-2xl text-white"><span id="overview-net-recv">—</span><small class="ml-1 text-xs font-normal text-slate-400">GB</small></b></div>
+          </div>
+          <p class="mt-3 text-xs text-slate-500">Volume total transmis et reçu</p>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="font-medium text-white">Activité sur 24 h</span>
+          <span class="text-xs text-slate-500">CPU · RAM · Disque</span>
+        </div>
+        <div class="h-56"><canvas id="overview-chart"></canvas></div>
+      </div>
+
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <span class="font-medium text-white">Processus principaux</span>
+            <a href="#processes" data-target="processes" class="nav-link text-xs font-semibold text-cyan-400 hover:text-cyan-300">Voir tout →</a>
+          </div>
+          <div id="overview-processes" class="space-y-2 text-sm"></div>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+          <div class="mb-3 flex items-center justify-between">
+            <span class="font-medium text-white">Partitions</span>
+            <a href="#disk" data-target="disk" class="nav-link text-xs font-semibold text-cyan-400 hover:text-cyan-300">Voir tout →</a>
+          </div>
+          <div id="overview-partitions" class="space-y-3 text-sm"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== HISTORY ===================== -->
+    <section id="history" class="section space-y-5">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="font-medium text-white">Historique détaillé — 24 dernières heures</span>
+          <span class="text-xs text-slate-500">Source : SQLite, collecte toutes les 5 min</span>
+        </div>
+        <div class="h-80"><canvas id="history-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===================== NETWORK ===================== -->
+    <section id="network" class="section space-y-5">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Données envoyées</p>
+          <b class="mt-3 block text-3xl text-white"><span id="net-sent">—</span> <small class="text-base font-normal text-slate-400">GB</small></b>
+          <p class="mt-2 text-xs text-slate-500">Depuis le démarrage du système</p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <p class="text-xs uppercase tracking-wide text-slate-400">Données reçues</p>
+          <b class="mt-3 block text-3xl text-white"><span id="net-recv">—</span> <small class="text-base font-normal text-slate-400">GB</small></b>
+          <p class="mt-2 text-xs text-slate-500">Depuis le démarrage du système</p>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">
+        Système : <span id="net-platform" class="text-slate-200">—</span>
+      </div>
+    </section>
+
+    <!-- ===================== PROCESSES ===================== -->
+    <section id="processes" class="section space-y-5">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="font-medium text-white">Processus les plus gourmands</span>
+          <span class="text-xs text-slate-500">Top 10 · CPU</span>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="bg-slate-800/60 text-xs uppercase text-slate-400">
+                <th class="px-4 py-3 font-semibold">PID</th>
+                <th class="px-4 py-3 font-semibold">Nom</th>
+                <th class="px-4 py-3 font-semibold">Utilisateur</th>
+                <th class="px-4 py-3 font-semibold">CPU</th>
+                <th class="px-4 py-3 font-semibold">Mémoire</th>
+                <th class="px-4 py-3 font-semibold"></th>
+              </tr>
+            </thead>
+            <tbody id="processes-table" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== DISK ===================== -->
+    <section id="disk" class="section space-y-5">
+      <div id="disk-partitions-full" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span class="font-medium text-white">Éléments les plus volumineux</span>
+          <div class="flex items-center gap-2">
+            <select id="drive-select" class="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-300"></select>
+            <button id="scan-drive-btn" class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-cyan-400 hover:text-cyan-300">Analyser</button>
+          </div>
+        </div>
+        <div id="disk-details-list" class="space-y-2 text-sm"></div>
+      </div>
+    </section>
+
+    <!-- ===================== APPS ===================== -->
+    <section id="apps" class="section space-y-5">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex items-center justify-between">
+          <span class="font-medium text-white">Top 10 des applications les plus lourdes</span>
+          <span class="text-xs text-slate-500">Système complet · détection automatique selon l'OS</span>
+        </div>
+        <div id="apps-list" class="space-y-3 text-sm"></div>
+        <p id="apps-error" class="mt-2 hidden text-sm text-amber-400"></p>
+      </div>
+    </section>
+
+    <!-- ===================== SERVICES ===================== -->
+    <section id="services" class="section space-y-5">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span class="font-medium text-white">Services Linux (systemd)</span>
+          <input id="services-filter" placeholder="Filtrer…" class="w-48 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none" />
+        </div>
+        <div class="max-h-[520px] overflow-y-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left text-sm">
+            <thead class="sticky top-0 bg-slate-800/90 backdrop-blur">
+              <tr class="text-xs uppercase text-slate-400">
+                <th class="px-4 py-3 font-semibold">Unité</th>
+                <th class="px-4 py-3 font-semibold">État</th>
+                <th class="px-4 py-3 font-semibold">Description</th>
+                <th class="px-4 py-3 font-semibold"></th>
+              </tr>
+            </thead>
+            <tbody id="services-table" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+        <p id="services-error" class="mt-3 hidden text-sm text-amber-400"></p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== AI ANALYSIS MODAL ===================== -->
+<div id="analysis-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+  <div class="max-h-[80vh] w-full max-w-xl overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
+    <div class="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+      <span class="font-semibold text-white">✦ Analyse IA</span>
+      <button id="close-analysis" class="text-slate-400 hover:text-white">✕</button>
+    </div>
+    <div id="analysis-content" class="max-h-[60vh] overflow-y-auto whitespace-pre-wrap px-5 py-4 text-sm leading-6 text-slate-300"></div>
+  </div>
+</div>
+
+<!-- ===================== SETTINGS MODAL ===================== -->
+<div id="settings-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl">
+    <div class="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+      <span class="font-semibold text-white">⚙ Réglages</span>
+      <button id="close-settings" class="text-slate-400 hover:text-white">✕</button>
+    </div>
+    <form id="settings-form" class="space-y-4 px-5 py-4 text-sm">
+      <label class="block"><span class="text-slate-400">Seuil CPU (%)</span>
+        <input type="number" name="cpu_threshold" min="1" max="100" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" /></label>
+      <label class="block"><span class="text-slate-400">Seuil Mémoire (%)</span>
+        <input type="number" name="memory_threshold" min="1" max="100" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" /></label>
+      <label class="block"><span class="text-slate-400">Seuil Disque (%)</span>
+        <input type="number" name="disk_threshold" min="1" max="100" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" /></label>
+      <label class="block"><span class="text-slate-400">Rétention (jours)</span>
+        <input type="number" name="retention_days" min="1" max="3650" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" /></label>
+      <label class="block"><span class="text-slate-400">Délai entre alertes (min)</span>
+        <input type="number" name="alert_cooldown_minutes" min="1" max="1440" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100" /></label>
+      <p id="settings-error" class="hidden text-xs text-rose-400"></p>
+      <button class="w-full rounded-lg bg-cyan-400 py-2 font-semibold text-slate-950 hover:bg-cyan-300">Enregistrer</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const fmt = n => (n===null||n===undefined||isNaN(n)) ? '—' : n;
+
+function badgeFor(value){
+  if (value >= 85) return {label:'Critique', cls:'bg-rose-500/15 text-rose-400', dot:'text-rose-400', bar:'bg-rose-500'};
+  if (value >= 65) return {label:'À surveiller', cls:'bg-amber-500/15 text-amber-400', dot:'text-amber-400', bar:'bg-amber-400'};
+  return {label:'Normal', cls:'bg-emerald-500/15 text-emerald-400', dot:'text-emerald-400', bar:'bg-cyan-400'};
+}
+
+function applyBadge(elId, barId, value){
+  const b = badgeFor(value);
+  const el = $('#'+elId);
+  el.textContent = b.label;
+  el.className = 'rounded-full px-2 py-0.5 text-xs font-semibold ' + b.cls;
+  const bar = $('#'+barId);
+  bar.style.width = Math.min(value,100) + '%';
+  bar.className = 'h-full rounded transition-all duration-700 ' + b.bar;
+}
+
+/* ---------------- Navigation ---------------- */
+function showSection(name){
+  $$('.section').forEach(s => s.classList.toggle('active', s.id === name));
+  $$('.nav-link, .nav-link-mobile').forEach(a => a.classList.toggle('active', a.dataset.target === name));
+  history.replaceState(null, '', '#' + name);
+  if (name === 'history') drawHistoryChart();
+  if (name === 'disk') fetchDiskDetails();
+  if (name === 'apps') fetchTopApps();
+  if (name === 'services') fetchServices();
+}
+$$('.nav-link, .nav-link-mobile').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault();
+  showSection(a.dataset.target);
+  a.scrollIntoView({ inline:'center', block:'nearest', behavior:'smooth' });
+}));
+showSection(location.hash ? location.hash.slice(1) : 'overview');
+
+/* ---------------- /data ---------------- */
+async function fetchSystemData(){
+  try{
+    const res = await fetch('/data');
+    const d = await res.json();
+
+    $('#platform-label').textContent = d.platform;
+    $('#net-platform').textContent = d.platform;
+    $('#last-updated').textContent = 'Mis à jour à ' + new Date().toLocaleTimeString('fr-FR');
+
+    $('#cpu-percent').textContent = d.cpu_percent + '%';
+    applyBadge('cpu-badge','cpu-bar', d.cpu_percent);
+
+    $('#mem-percent').textContent = d.memory_percent + '%';
+    $('#mem-used').textContent = d.memory_used_gb;
+    $('#mem-total').textContent = d.memory_total_gb;
+    applyBadge('mem-badge','mem-bar', d.memory_percent);
+
+    $('#disk-percent').textContent = d.disk_percent + '%';
+    $('#disk-used').textContent = d.disk_used_gb;
+    $('#disk-total').textContent = d.disk_total_gb;
+    applyBadge('disk-badge','disk-bar', d.disk_percent);
+
+    $('#net-sent').textContent = d.net_bytes_sent_gb;
+    $('#net-recv').textContent = d.net_bytes_recv_gb;
+    $('#overview-net-sent').textContent = d.net_bytes_sent_gb;
+    $('#overview-net-recv').textContent = d.net_bytes_recv_gb;
+
+    renderOverviewPartitions(d.disk_partitions || []);
+  }catch(e){ console.error('Erreur /data', e); }
+}
+
+function renderOverviewPartitions(parts){
+  const wrap = $('#overview-partitions');
+  wrap.innerHTML = '';
+  parts.slice(0,4).forEach(p => {
+    const b = badgeFor(p.percent);
+    wrap.insertAdjacentHTML('beforeend', `
+      <div>
+        <div class="mb-1 flex items-center justify-between text-xs">
+          <span class="truncate text-slate-300">${p.name}</span>
+          <span class="font-semibold ${b.dot}">${p.percent}%</span>
+        </div>
+        <div class="h-1.5 rounded bg-slate-800"><div class="h-full rounded ${b.bar}" style="width:${Math.min(p.percent,100)}%"></div></div>
+      </div>`);
+  });
+  if (!parts.length) wrap.innerHTML = '<p class="text-slate-500">Aucune partition détectée.</p>';
+
+  const full = $('#disk-partitions-full');
+  full.innerHTML = '';
+  parts.forEach(p => {
+    const b = badgeFor(p.percent);
+    full.insertAdjacentHTML('beforeend', `
+      <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <p class="truncate text-xs text-slate-400" title="${p.device}">${p.name}</p>
+        <div class="mt-2 flex items-end justify-between">
+          <b class="text-2xl text-white">${p.percent}%</b>
+          <span class="rounded-full px-2 py-0.5 text-xs font-semibold ${b.cls}">${b.label}</span>
+        </div>
+        <p class="mt-1 text-xs text-slate-500">${p.used_gb} GB / ${p.total_gb} GB</p>
+        <div class="mt-3 h-1.5 rounded bg-slate-800"><div class="h-full rounded ${b.bar}" style="width:${Math.min(p.percent,100)}%"></div></div>
+      </div>`);
+  });
+}
+
+/* ---------------- /processes ---------------- */
+async function fetchProcesses(){
+  try{
+    const res = await fetch('/processes');
+    const rows = await res.json();
+
+    $('#overview-processes').innerHTML = rows.slice(0,5).map(p => `
+      <div class="flex items-center justify-between rounded-xl bg-slate-800/50 px-4 py-2.5">
+        <span class="truncate font-medium text-slate-200">${p.name}</span>
+        <span class="font-semibold text-cyan-300">${p.cpu_percent.toFixed(1)}% CPU</span>
+      </div>`).join('') || '<p class="text-slate-500">Aucun processus.</p>';
+
+    $('#processes-table').innerHTML = rows.map(p => `
+      <tr class="hover:bg-slate-800/40">
+        <td class="px-4 py-2.5 text-slate-400">${p.pid}</td>
+        <td class="px-4 py-2.5 font-medium text-slate-200">${p.name}</td>
+        <td class="px-4 py-2.5 text-slate-400">${p.username || 'N/A'}</td>
+        <td class="px-4 py-2.5 text-cyan-300">${p.cpu_percent.toFixed(1)}%</td>
+        <td class="px-4 py-2.5 text-slate-400">${p.memory_percent}%</td>
+        <td class="px-4 py-2.5 text-right">
+          <button class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-cyan-400 hover:text-cyan-300"
+            onclick='analyzeItem("process", ${JSON.stringify(p)})'>Analyser IA</button>
+        </td>
+      </tr>`).join('');
+  }catch(e){ console.error('Erreur /processes', e); }
+}
+
+/* ---------------- /history ---------------- */
+let overviewChart, historyChart, historyDataCache = null;
+
+async function getHistory(){
+  if (historyDataCache) return historyDataCache;
+  const res = await fetch('/history');
+  historyDataCache = await res.json();
+  return historyDataCache;
+}
+
+function historyDatasets(d){
+  return [
+    { label: 'CPU %', data: d.timestamps.map((t,i)=>({x:t,y:d.cpu[i]})), borderColor:'#218b76', backgroundColor:'rgba(33,139,118,.10)', tension:.35, pointRadius:0, fill:true, borderWidth:2 },
+    { label: 'Mémoire %', data: d.timestamps.map((t,i)=>({x:t,y:d.memory[i]})), borderColor:'#b7791f', backgroundColor:'rgba(183,121,31,.07)', tension:.35, pointRadius:0, fill:true, borderWidth:2 },
+    { label: 'Disque %', data: d.timestamps.map((t,i)=>({x:t,y:d.disk[i]})), borderColor:'#48835d', backgroundColor:'rgba(72,131,93,.07)', tension:.35, pointRadius:0, fill:true, borderWidth:2 },
+  ];
+}
+
+const chartBaseOptions = {
+  responsive:true, maintainAspectRatio:false,
+  interaction:{ mode:'index', intersect:false },
+  plugins:{ legend:{ labels:{ color:'#637b87', boxWidth:10, usePointStyle:true } } },
+  scales:{
+    x:{ type:'time', time:{ unit:'hour' }, ticks:{ color:'#718691' }, grid:{ color:'rgba(99,123,135,.12)' } },
+    y:{ min:0, max:100, ticks:{ color:'#718691' }, grid:{ color:'rgba(99,123,135,.12)' } }
+  }
+};
+
+async function drawOverviewChart(){
+  const d = await getHistory();
+  const ctx = $('#overview-chart');
+  if (!ctx) return;
+  if (overviewChart) overviewChart.destroy();
+  overviewChart = new Chart(ctx, { type:'line', data:{ datasets: historyDatasets(d) }, options: chartBaseOptions });
+}
+
+async function drawHistoryChart(){
+  historyDataCache = null;
+  const d = await getHistory();
+  const ctx = $('#history-chart');
+  if (!ctx) return;
+  if (historyChart) historyChart.destroy();
+  historyChart = new Chart(ctx, { type:'line', data:{ datasets: historyDatasets(d) }, options: chartBaseOptions });
+}
+
+/* ---------------- /disk-usage-details + /drives ---------------- */
+async function loadDrives(){
+  try{
+    const res = await fetch('/drives');
+    const drives = await res.json();
+    const sel = $('#drive-select');
+    sel.innerHTML = drives.map(d => `<option value="${d}">${d}</option>`).join('');
+  }catch(e){ console.error('Erreur /drives', e); }
+}
+
+async function fetchDiskDetails(){
+  const path = $('#drive-select').value || '';
+  const list = $('#disk-details-list');
+  list.innerHTML = '<p class="text-slate-500">Analyse en cours…</p>';
+  try{
+    const res = await fetch('/disk-usage-details' + (path ? '?path=' + encodeURIComponent(path) : ''));
+    const data = await res.json();
+    if (data.error){ list.innerHTML = `<p class="text-amber-400">${data.error}</p>`; return; }
+    list.innerHTML = data.map(item => `
+      <div class="flex items-center justify-between rounded-xl bg-slate-800/50 px-4 py-2.5">
+        <span class="truncate pr-3 font-mono text-xs text-slate-300" title="${item.path}">${item.path}</span>
+        <div class="flex items-center gap-3">
+          <span class="whitespace-nowrap font-semibold text-cyan-300">${item.size}</span>
+          <button class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-cyan-400 hover:text-cyan-300"
+            onclick='analyzeItem("disk", ${JSON.stringify(item)})'>Analyser IA</button>
+        </div>
+      </div>`).join('') || '<p class="text-slate-500">Aucun résultat.</p>';
+  }catch(e){ list.innerHTML = '<p class="text-amber-400">Impossible de charger les données disque.</p>'; }
+}
+$('#scan-drive-btn').addEventListener('click', fetchDiskDetails);
+$('#drive-select').addEventListener('change', fetchDiskDetails);
+
+/* ---------------- /top-apps ---------------- */
+let appsLoaded = false;
+async function fetchTopApps(){
+  const list = $('#apps-list');
+  const errEl = $('#apps-error');
+  errEl.classList.add('hidden');
+  list.innerHTML = '<p class="text-slate-500">Analyse des paquets installés en cours…</p>';
+  try{
+    const res = await fetch('/top-apps');
+    const data = await res.json();
+    if (data.error){
+      list.innerHTML = '';
+      errEl.textContent = data.error;
+      errEl.classList.remove('hidden');
+      return;
+    }
+    list.innerHTML = data.map((app, i) => `
+      <div class="rounded-xl bg-slate-800/50 px-4 py-3">
+        <div class="mb-1.5 flex items-center justify-between gap-3">
+          <div class="flex min-w-0 items-center gap-2">
+            <span class="w-5 shrink-0 text-xs font-semibold text-slate-500">${i+1}</span>
+            <span class="truncate font-mono text-sm font-medium text-slate-200" title="${app.name}">${app.name}</span>
+          </div>
+          <div class="flex shrink-0 items-center gap-3">
+            <span class="whitespace-nowrap font-semibold text-cyan-300">${app.size}</span>
+            <button class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-cyan-400 hover:text-cyan-300"
+              onclick='analyzeItem("app", ${JSON.stringify(app)})'>Analyser IA</button>
+          </div>
+        </div>
+        <div class="h-1.5 rounded bg-slate-900"><div class="h-full rounded bg-cyan-400" style="width:${app.percent_of_top}%"></div></div>
+        ${app.description ? `<p class="mt-1.5 truncate text-xs text-slate-500" title="${app.description}">${app.description}</p>` : ''}
+      </div>`).join('') || '<p class="text-slate-500">Aucune application trouvée.</p>';
+  }catch(e){
+    list.innerHTML = '';
+    errEl.textContent = "Impossible de récupérer la liste des applications.";
+    errEl.classList.remove('hidden');
+  }
+}
+
+/* ---------------- /services_status ---------------- */
+let servicesCache = [];
+async function fetchServices(){
+  const tbody = $('#services-table');
+  const errEl = $('#services-error');
+  errEl.classList.add('hidden');
+  try{
+    const res = await fetch('/services_status');
+    const data = await res.json();
+    if (data.error){ errEl.textContent = data.error; errEl.classList.remove('hidden'); tbody.innerHTML=''; return; }
+    servicesCache = data;
+    renderServices(data);
+  }catch(e){
+    errEl.textContent = "Impossible de récupérer l'état des services.";
+    errEl.classList.remove('hidden');
+  }
+}
+function renderServices(rows){
+  const activeColor = a => a === 'active' ? 'bg-emerald-500/15 text-emerald-400' : (a === 'failed' ? 'bg-rose-500/15 text-rose-400' : 'bg-slate-700/40 text-slate-400');
+  $('#services-table').innerHTML = rows.map(s => `
+    <tr class="hover:bg-slate-800/40">
+      <td class="px-4 py-2.5 font-mono text-xs text-slate-200">${s.unit}</td>
+      <td class="px-4 py-2.5"><span class="rounded-full px-2 py-0.5 text-xs font-semibold ${activeColor(s.active)}">${s.active} / ${s.sub}</span></td>
+      <td class="px-4 py-2.5 text-slate-400">${s.description}</td>
+      <td class="px-4 py-2.5 text-right">
+        <button class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-cyan-400 hover:text-cyan-300"
+          onclick='analyzeItem("service", ${JSON.stringify(s)})'>Analyser IA</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">Aucun service trouvé.</td></tr>';
+}
+$('#services-filter').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  renderServices(servicesCache.filter(s => (s.unit + s.description).toLowerCase().includes(q)));
+});
+
+/* ---------------- AI analysis modal ---------------- */
+async function analyzeItem(type, data){
+  $('#analysis-modal').classList.remove('hidden');
+  $('#analysis-modal').classList.add('flex');
+  $('#analysis-content').textContent = 'Analyse en cours…';
+  try{
+    const res = await fetch('/analyze', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type, data })
+    });
+    const result = await res.json();
+    $('#analysis-content').textContent = result.analysis || result.error || 'Aucune réponse.';
+  }catch(e){
+    $('#analysis-content').textContent = "Erreur lors de l'analyse IA.";
+  }
+}
+$('#close-analysis').addEventListener('click', () => {
+  $('#analysis-modal').classList.add('hidden');
+  $('#analysis-modal').classList.remove('flex');
+});
+
+/* ---------------- Settings modal ---------------- */
+async function openSettings(){
+  $('#settings-modal').classList.remove('hidden');
+  $('#settings-modal').classList.add('flex');
+  $('#settings-error').classList.add('hidden');
+  try{
+    const res = await fetch('/settings');
+    const s = await res.json();
+    Object.keys(s).forEach(k => { const el = $(`[name="${k}"]`); if (el) el.value = s[k]; });
+  }catch(e){}
+}
+$('#open-settings').addEventListener('click', openSettings);
+$('#open-settings-mobile').addEventListener('click', openSettings);
+$('#close-settings').addEventListener('click', () => {
+  $('#settings-modal').classList.add('hidden');
+  $('#settings-modal').classList.remove('flex');
+});
+$('#settings-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {};
+  fd.forEach((v,k) => payload[k] = Number(v));
+  const res = await fetch('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  if (res.ok){
+    $('#settings-modal').classList.add('hidden');
+    $('#settings-modal').classList.remove('flex');
+  } else {
+    const err = await res.json();
+    $('#settings-error').textContent = err.error || 'Valeur invalide.';
+    $('#settings-error').classList.remove('hidden');
+  }
+});
+
+/* ---------------- Refresh + polling ---------------- */
+async function refreshAll(){
+  await fetchSystemData();
+  await drawOverviewChart();
+}
+$('#refresh-btn').addEventListener('click', refreshAll);
+
+refreshAll();
+fetchProcesses();
+loadDrives();
+setInterval(fetchSystemData, 3000);
+setInterval(fetchProcesses, 5000);
+setInterval(() => { if ($('#overview').classList.contains('active')) drawOverviewChart(); }, 60000);
+</script>
+</body>
+</html>

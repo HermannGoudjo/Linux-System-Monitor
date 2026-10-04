@@ -1,0 +1,18 @@
+# Fichiers et dossiers à ignorer lors de la construction de l'image Docker
+
+# Environnement virtuel Python
+venv/
+
+# Dossiers de cache Python
+__pycache__/
+*.pyc
+
+# Fichiers Git
+.git/
+.gitignore
+
+# Base de données SQLite
+*.db
+
+# Fichiers de documentation non nécessaires à l'exécution
+*.md

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Recherche « {{ results.query }} » — Linux System Monitor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{background:#f1f5f6;color:#1b303b}
+  [class~="bg-slate-950"]{background-color:#edf2f3!important}
+  [class~="bg-slate-900"]{background-color:#fff!important}
+  [class~="bg-slate-800/60"]{background-color:#edf2f3!important}
+  [class~="bg-slate-800/50"],[class~="bg-slate-800/40"]{background-color:#f5f8f9!important}
+  [class~="border-slate-800"],[class~="border-slate-700"]{border-color:#d8e2e6!important}
+  [class~="divide-slate-800"]>:not([hidden])~:not([hidden]){border-color:#e5ecef!important}
+  [class~="text-white"]{color:#17313e!important}
+  [class~="text-slate-200"]{color:#304b58!important}
+  [class~="text-slate-300"]{color:#425c69!important}
+  [class~="text-slate-400"]{color:#637b87!important}
+  [class~="text-slate-500"]{color:#718691!important}
+  [class~="text-cyan-300"],[class~="text-cyan-400"]{color:#167763!important}
+  [class~="bg-cyan-400"]{background-color:#218b76!important}
+  [class~="text-slate-950"]{color:#fff!important}
+  [class~="hover:text-cyan-300"]:hover{color:#167763!important}
+  [class~="hover:bg-slate-800/40"]:hover{background-color:#f0f5f6!important}
+  [class~="text-emerald-400"]{color:#16805f!important}
+  [class~="text-rose-400"]{color:#c24154!important}
+  [class~="text-slate-400"]{color:#637b87!important}
+  input{color:#304b58!important}
+</style>
+</head>
+<body class="min-h-screen bg-slate-950 font-sans text-slate-100">
+<div class="mx-auto max-w-4xl px-4 py-8 md:px-6">
+
+  <div class="mb-6 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-white">
+      <span class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400 text-slate-950">⌁</span>
+      Monitor
+    </a>
+    <form action="/search" method="get" class="flex items-center overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
+      <input name="query" value="{{ results.query }}" class="w-56 bg-transparent px-3 py-2 text-sm text-slate-200 outline-none md:w-72" />
+      <button class="px-3 py-2 text-slate-400 hover:text-cyan-300">⌕</button>
+    </form>
+  </div>
+
+  <p class="mb-1 text-xs uppercase tracking-wide text-slate-500">Résultats de recherche</p>
+  <h1 class="mb-8 text-2xl font-semibold text-white">« {{ results.query }} »</h1>
+
+  <!-- Processes -->
+  <section class="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div class="mb-3 flex items-center justify-between">
+      <span class="font-medium text-white">Processus</span>
+      <span class="text-xs text-slate-500">{{ results.processes|length }} résultat(s)</span>
+    </div>
+    {% if results.processes %}
+    <div class="overflow-x-auto rounded-xl border border-slate-800">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="bg-slate-800/60 text-xs uppercase text-slate-400">
+            <th class="px-4 py-3 font-semibold">PID</th>
+            <th class="px-4 py-3 font-semibold">Nom</th>
+            <th class="px-4 py-3 font-semibold">Utilisateur</th>
+            <th class="px-4 py-3 font-semibold">CPU</th>
+            <th class="px-4 py-3 font-semibold">Mémoire</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          {% for p in results.processes %}
+          <tr class="hover:bg-slate-800/40">
+            <td class="px-4 py-2.5 text-slate-400">{{ p.pid }}</td>
+            <td class="px-4 py-2.5 font-medium text-slate-200">{{ p.name }}</td>
+            <td class="px-4 py-2.5 text-slate-400">{{ p.username or 'N/A' }}</td>
+            <td class="px-4 py-2.5 text-cyan-300">{{ p.cpu_percent }}%</td>
+            <td class="px-4 py-2.5 text-slate-400">{{ p.memory_percent|round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="rounded-xl bg-slate-800/40 px-4 py-6 text-center text-sm text-slate-500">Aucun processus correspondant.</p>
+    {% endif %}
+  </section>
+
+  <!-- Services -->
+  <section class="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div class="mb-3 flex items-center justify-between">
+      <span class="font-medium text-white">Services</span>
+      <span class="text-xs text-slate-500">{{ results.services|length }} résultat(s)</span>
+    </div>
+    {% if results.services %}
+    <div class="overflow-x-auto rounded-xl border border-slate-800">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="bg-slate-800/60 text-xs uppercase text-slate-400">
+            <th class="px-4 py-3 font-semibold">Unité</th>
+            <th class="px-4 py-3 font-semibold">État</th>
+            <th class="px-4 py-3 font-semibold">Description</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800">
+          {% for s in results.services %}
+          <tr class="hover:bg-slate-800/40">
+            <td class="px-4 py-2.5 font-mono text-xs text-slate-200">{{ s.unit }}</td>
+            <td class="px-4 py-2.5">
+              <span class="rounded-full px-2 py-0.5 text-xs font-semibold {% if s.active == 'active' %}bg-emerald-500/15 text-emerald-400{% elif s.active == 'failed' %}bg-rose-500/15 text-rose-400{% else %}bg-slate-700/40 text-slate-400{% endif %}">
+                {{ s.active }} / {{ s.sub }}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-slate-400">{{ s.description }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="rounded-xl bg-slate-800/40 px-4 py-6 text-center text-sm text-slate-500">Aucun service correspondant.</p>
+    {% endif %}
+  </section>
+
+  <!-- Disk -->
+  <section class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div class="mb-3 flex items-center justify-between">
+      <span class="font-medium text-white">Fichiers &amp; dossiers</span>
+      <span class="text-xs text-slate-500">{{ results.disk|length }} résultat(s)</span>
+    </div>
+    {% if results.disk %}
+    <div class="space-y-2">
+      {% for path in results.disk %}
+      <div class="truncate rounded-xl bg-slate-800/50 px-4 py-2.5 font-mono text-xs text-slate-300" title="{{ path }}">{{ path }}</div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="rounded-xl bg-slate-800/40 px-4 py-6 text-center text-sm text-slate-500">Aucun fichier ou dossier correspondant.</p>
+    {% endif %}
+  </section>
+
+  <a href="/" class="mt-8 inline-block text-sm font-semibold text-cyan-400 hover:text-cyan-300">← Retour au tableau de bord</a>
+</div>
+</body>
+</html>
